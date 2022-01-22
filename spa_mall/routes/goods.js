@@ -16,6 +16,20 @@ router.get('/goods', async (req, res) => {
     })
 })
 
+router.get('/goods/carts', async (req, res) => {
+    const carts = await Cart.find()
+    const goodsIds = carts.map((cart) => cart.goodsId)
+
+    const goods = await Goods.find({ goodsId: goodsIds })
+
+    res.json({
+        carts: carts.map((cart) => ({
+            quantity: cart.quantity,
+            goods: goods.find((item) => item.goodsId === cart.goodsId)
+        }))
+    })
+})
+
 router.get('/goods/:goodsId', async (req, res) => {
     const { goodsId } = req.params
 
@@ -55,6 +69,10 @@ router.delete('/goods/:goodsId/cart', async (req, res) => {
 router.put('/goods/:goodsId/cart', async (req, res) => {
     const { goodsId } = req.params
     const { quantity } = req.body
+
+    if (quantity < 1) {
+        return res.status(400).json({ success: false, errorMessage: '올바른 수량을 입력해주세요.' })
+    }
 
     const existsCarts = await Cart.find({ goodsId: Number(goodsId) })
     if (!existsCarts.length) {
