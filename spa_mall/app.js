@@ -15,7 +15,7 @@ const requestMiddleware = (req, res, next) => {
 
 app.use(express.static('static'))
 app.use(express.json())
-app.use(express.urlencoded())   //  프론트엔드는 JSON 데이터가 아닌 URL Encoded 형식의 데이터로 Body를 보낸다고 함
+app.use(express.urlencoded())   //  프론트엔드에서 JSON 데이터가 아닌 URL Encoded 형식의 데이터로 Body를 보낸다고 함
 app.use(requestMiddleware)
 
 app.use('/api', [goodsRouter])
