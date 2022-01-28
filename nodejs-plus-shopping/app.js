@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const User = require("./models/user");
 const authMiddleware = require("./middlewares/auth-middleware")
 const Joi = require('joi');
+const Goods = require('./models/goods')
+const Cart = require('./models/cart')
 
 mongoose.connect("mongodb://localhost/shopping-demo", {
     useNewUrlParser: true,
@@ -15,57 +17,74 @@ db.on("error", console.error.bind(console, "connection error:"));
 const app = express();
 const router = express.Router();
 
+app.use(express.json())
+app.use("/api", express.urlencoded({ extended: false }), router);
+app.use(express.static("assets"));
 
-const schema = Joi.object({
-    nickname: Joi.string()
-        .alphanum()
-        .min(3)
-        .max(30)
-        .required(),
+// const schema = Joi.object({
+//     nickname: Joi.string()
+//         .alphanum()
+//         .min(3)
+//         .max(30)
+//         .required(),
 
-    password: Joi.string()
-        .pattern(new RegExp('^[a-zA-Z0-9]{3,30}$')),
+//     password: Joi.string()
+//         .pattern(new RegExp('^[a-zA-Z0-9]{3,30}$')),
 
-    confirmPassword: Joi.ref('password'),
+//     confirmPassword: Joi.ref('password'),
 
-    email: Joi.string()
-        .email({ minDomainSegments: 2, tlds: { allow: ['com', 'net'] } })
-})
+//     email: Joi.string()
+//         .email({ minDomainSegments: 2, tlds: { allow: ['com', 'net'] } })
+// })
     // .with('nickname', 'password', 'email', 'confirmPassword');
 
+const postUsersSchema = Joi.object({
+    nickname: Joi.string().required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().required(),
+    confirmPassword: Joi.string().required(),
+})
 
 //  회원가입
 router.post("/users", async (req, res) => {
-    const { value, error } = schema.validate(req.body)
-    if (error) {
-        res.status(400).send({
-            errorMessage: '입력 값을 확인해주세요.',
-        });
-        return;
-    }
-    const { nickname, password, confirmPassword, email } = value
-
-    // if (password !== confirmPassword) {
+    // const { value, error } = schema.validate(req.body)
+    // if (error) {
     //     res.status(400).send({
-    //         errorMessage: '패스워드가 패스워드 확인란과 동일하지 않습니다.',
+    //         errorMessage: '입력 값을 확인해주세요.',
     //     });
     //     return;
     // }
+    // const { nickname, password, confirmPassword, email } = value
 
-    const existUsers = await User.find({
-        $or: [{ email }, { nickname }], //  email 또는 nickname이 일치하는 데이터가 있는지 검색
-    })
-    if (existUsers.length) {
+    try {
+        const { nickname, email, password, confirmPassword } = await postUsersSchema.validateAsync(req.body);
+        
+        if (password !== confirmPassword) {
+            res.status(400).send({
+                errorMessage: '패스워드가 패스워드 확인란과 동일하지 않습니다.',
+            });
+            return;
+        }
+    
+        const existUsers = await User.find({
+            $or: [{ email }, { nickname }], //  email 또는 nickname이 일치하는 데이터가 있는지 검색
+        })
+        if (existUsers.length) {
+            res.status(400).send({
+                errorMessage: '이미 가입한 이메일 또는 닉네임이 있습니다.',
+            });
+            return;
+        }
+    
+        const user = new User({ email, nickname, password });
+        await user.save();
+    
+        res.status(201).send({});
+    } catch (error) {
         res.status(400).send({
-            errorMessage: '이미 가입한 이메일 또는 닉네임이 있습니다.',
-        });
-        return;
+            errorMessage: '요청한 데이터 형식이 올바르지 않습니다.'
+        })
     }
-
-    const user = new User({ email, nickname, password });
-    await user.save();
-
-    res.status(201).send({});
 })
 
 
@@ -104,8 +123,106 @@ router.get("/users/me", authMiddleware, async (req, res) => {
 
 
 
-app.use("/api", express.urlencoded({ extended: false }), router);
-app.use(express.static("assets"));
+// 상품 관련 내용
+
+
+
+//  물품 조회
+router.get('/goods', authMiddleware, async (req, res) => {
+    const { category } = req.query
+
+    const goods = await Goods.find(category? { category } : undefined)
+    res.json({
+        goods
+    })
+})
+
+//  장바구니 목록 확인
+router.get('/goods/cart', authMiddleware, async (req, res) => {
+    const { userId } = res.locals.user;
+    const carts = await Cart.find({ userId })
+    const goodsIds = carts.map((cart) => cart.goodsId)
+
+    const goods = await Goods.find({ goodsId: goodsIds })
+
+    res.json({
+        cart: carts.map((cart) => ({
+            quantity: cart.quantity,
+            goods: goods.find((item) => item.goodsId === cart.goodsId)
+        }))
+    })
+})
+
+//  상품 상세 조회
+router.get('/goods/:goodsId', authMiddleware, async (req, res) => {
+    const { goodsId } = req.params
+
+    const [goods] = await Goods.find({ goodsId: Number(goodsId) })
+
+    res.json({
+        goods
+    })
+})
+
+//  장바구니에 추가
+router.post('/goods/:goodsId/cart', authMiddleware, async (req, res) => {
+    const { userId } = res.locals.user;
+    const { goodsId } = req.params
+    const { quantity } = req.body
+
+    const existsCarts = await Cart.find({ userId, goodsId: Number(goodsId) })
+    if (existsCarts.length) {
+        return res.status(400).json({ success: false, errorMessage: '이미 장바구니에 들어있는 상품입니다.' })
+    }
+
+    await Cart.create({ userId, goodsId: Number(goodsId), quantity })
+    res.json({ success: true })
+})
+
+//  장바구니에서 삭제
+router.delete('/goods/:goodsId/cart', authMiddleware, async (req, res) => {
+    const { userId } = res.locals.user;
+    const { goodsId } = req.params
+
+    const existsCarts = await Cart.find({ userId, goodsId: Number(goodsId) })
+    if (existsCarts.length) {
+        await Cart.deleteOne({ userId, goodsId: Number(goodsId) })
+    }
+    res.json({ success: true })
+})
+
+//  장바구니 상품 추가 및 수량 변경
+router.put('/goods/:goodsId/cart', authMiddleware, async (req, res) => {
+    const { userId } = res.locals.user;
+    const { goodsId } = req.params
+    const { quantity } = req.body
+
+    if (quantity < 1) {
+        return res.status(400).json({ success: false, errorMessage: '올바른 수량을 입력해주세요.' })
+    }
+
+    const existsCarts = await Cart.find({ userId, goodsId: Number(goodsId) })
+    if (!existsCarts.length) {
+        await Cart.create({ userId, goodsId: Number(goodsId), quantity })
+    } else {
+        await Cart.updateOne({ userId, goodsId: Number(goodsId) }, { $set: { quantity } })
+    }
+
+    res.json({ success: true })
+})
+
+router.post('/goods', async (req, res) => {
+    const { goodsId, name, thumbnailUrl, category, price } = req.body
+
+    const goods = await Goods.find({ goodsId });
+    if (goods.length) {
+        return res.status(400).json({ success: false, errorMessage: '이미 있는 데이터입니다.' })
+    }
+
+    const createdGoods = await Goods.create({ goodsId, name, thumbnailUrl, category, price })
+
+    res.json({ goods })
+})
 
 app.listen(8080, () => {
     console.log("서버가 요청을 받을 준비가 됐어요");
