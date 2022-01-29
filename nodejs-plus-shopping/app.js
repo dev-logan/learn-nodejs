@@ -110,7 +110,7 @@ router.post("/auth", async (req, res) => {
 
 
 
-//  사용자 인증 - 미들웨어를 붙임
+//  사용자 정보 - 미들웨어를 붙임
 router.get("/users/me", authMiddleware, async (req, res) => {
     const { user } = res.locals;    //  로그인 한 유저의 정보
     res.send({
