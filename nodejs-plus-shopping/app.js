@@ -1,7 +1,8 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
-const User = require("./models/user");
+const { User } = require("./models");
+const { Op } = require("sequelize");
 const authMiddleware = require("./middlewares/auth-middleware")
 const Joi = require('joi');
 const Goods = require('./models/goods')
@@ -66,8 +67,11 @@ router.post("/users", async (req, res) => {
             return;
         }
     
-        const existUsers = await User.find({
-            $or: [{ email }, { nickname }], //  email 또는 nickname이 일치하는 데이터가 있는지 검색
+        //  email 또는 nickname이 일치하는 데이터가 있는지 검색
+        const existUsers = await User.findAll({
+            where: {
+                [Op.or]: [{ email }, { nickname }],
+            }
         })
         if (existUsers.length) {
             res.status(400).send({
@@ -76,9 +80,7 @@ router.post("/users", async (req, res) => {
             return;
         }
     
-        const user = new User({ email, nickname, password });
-        await user.save();
-    
+        await User.create({ email, nickname, password });
         res.status(201).send({});
     } catch (error) {
         res.status(400).send({
@@ -93,7 +95,11 @@ router.post("/users", async (req, res) => {
 router.post("/auth", async (req, res) => {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email, password });
+    const user = await User.findOne({ 
+        where: {
+            email
+        }
+     });
 
     if (!user) {
         res.status(400).send({

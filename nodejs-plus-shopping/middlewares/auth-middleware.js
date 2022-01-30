@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken")
-const User = require("../models/user")
+const { User } = require("../models")
 
 module.exports = (req, res, next) => {
     const { authorization } = req.headers;
@@ -15,7 +15,7 @@ module.exports = (req, res, next) => {
     try {
         const { userId } = jwt.verify(tokenValue, "my-secret-key");
 
-        User.findById(userId).exec().then((user) => {
+        User.findByPk(userId).then((user) => {
             res.locals.user = user; //  이 미들웨어를 사용하는 곳에서 사용할 수 있는 (express가 제공하는 안전한) 변수
             next();
         });
