@@ -1,12 +1,12 @@
 const express = require("express");
+const Http = require("http");
+const socketIo = require("socket.io");
 // const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
-const { User } = require("./models");
+const { User, Goods, Cart } = require("./models");
 const { Op } = require("sequelize");
-const authMiddleware = require("./middlewares/auth-middleware")
+const authMiddleware = require("./middlewares/auth-middleware");
 const Joi = require('joi');
-const { Goods } = require('./models')
-const { Cart } = require('./models')
 
 // mongoose.connect("mongodb://localhost/shopping-demo", {
 //     useNewUrlParser: true,
@@ -16,7 +16,54 @@ const { Cart } = require('./models')
 // db.on("error", console.error.bind(console, "connection error:"));
 
 const app = express();
+const http = Http.createServer(app);
+const io = socketIo(http);
 const router = express.Router();
+
+const socketIdMap = {}
+
+function emitSamePageViewerCount() {
+    console.log(Object.values(socketIdMap))
+    const countByUrl = Object.values(socketIdMap).reduce((value, url) => {
+        return {
+            ...value,
+            [url]: value[url] ? value[url] + 1 : 1
+        }
+    }, {})
+    
+    for (const [socketId, url] of Object.entries(socketIdMap)) {
+            const count = countByUrl[url]
+            io.to(socketId).emit("SAME_PAGE_VIEWER_COUNT", count)
+    }
+}
+
+io.on("connection", (socket) => {
+    socketIdMap[socket.id] = null
+    console.log("누군가 연결했어요!")
+
+    socket.on("CHANGED_PAGE", (data) => {
+        console.log('페이지가 바뀌었대요', data, socket.id)
+        socketIdMap[socket.id] = data
+        emitSamePageViewerCount()
+    })
+
+    socket.on("BUY", (data) => {
+        const payload = {
+            nickname: data.nickname,
+            goodsId: data.goodsId,
+            goodsName: data.goodsName,
+            date: new Date().toISOString(),
+        }
+        console.log("클라이언트가 구매한 데이터", data, new Date())
+        socket.broadcast.emit("BUY_GOODS", payload);  //  io.emit: 모든 이에게 데이터를 보냄 / socket.broadcast.emit: 나를 제외한 모두에게
+    })
+
+    socket.on("disconnect", () => {
+        delete socketIdMap[socket.id]
+        console.log("누군가 연결을 끊었어요!")
+        emitSamePageViewerCount()
+    })
+})
 
 app.use(express.json())
 app.use("/api", express.urlencoded({ extended: false }), router);
@@ -233,6 +280,6 @@ router.post('/goods', async (req, res) => {
     res.json({ createdGoods })
 })
 
-app.listen(8080, () => {
+http.listen(8080, () => {
     console.log("서버가 요청을 받을 준비가 됐어요");
 });
