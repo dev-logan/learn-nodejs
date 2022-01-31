@@ -1,25 +1,30 @@
-const mongoose = require('mongoose')
-
-const goodsSchema = new mongoose.Schema({
-    goodsId: {
-        type: Number,
-        required: true,
-        unique: true
-    },
-    name: {
-        type: String,
-        required: true,
-        unique: true
-    },
-    thumbnailUrl: {
-        type: String
-    },
-    category: {
-        type: String
-    },
-    price: {
-        type: Number
+'use strict';
+const {
+  Model
+} = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+  class Goods extends Model {
+    /**
+     * Helper method for defining associations.
+     * This method is not a part of Sequelize lifecycle.
+     * The `models/index` file will call this method automatically.
+     */
+    static associate(models) {
+      // define association here
     }
-})
-
-module.exports = mongoose.model('Goods', goodsSchema)   //  mongoose가 collection 이름을 자동으로 만들어 주는 것 같다
+  }
+  Goods.init({
+    goodsId: {
+      primaryKey: true,
+      type: DataTypes.INTEGER,
+    },
+    name: DataTypes.STRING,
+    thumbnailUrl: DataTypes.STRING,
+    category: DataTypes.STRING,
+    price: DataTypes.INTEGER
+  }, {
+    sequelize,
+    modelName: 'Goods',
+  });
+  return Goods;
+};

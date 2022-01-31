@@ -1,15 +1,25 @@
-const mongoose = require('mongoose')
-
-const schema = new mongoose.Schema({
-    goodsId: {
-        type: Number,
-        required: true, //  필수값
-        unique: true
-    },
-    quantity: {
-        type: Number,
-        required: true
+'use strict';
+const {
+  Model
+} = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+  class Cart extends Model {
+    /**
+     * Helper method for defining associations.
+     * This method is not a part of Sequelize lifecycle.
+     * The `models/index` file will call this method automatically.
+     */
+    static associate(models) {
+      // define association here
     }
-})
-
-module.exports = mongoose.model('Cart', schema)
+  }
+  Cart.init({
+    userId: DataTypes.INTEGER,
+    goodsId: DataTypes.INTEGER,
+    quantity: DataTypes.INTEGER
+  }, {
+    sequelize,
+    modelName: 'Cart',
+  });
+  return Cart;
+};

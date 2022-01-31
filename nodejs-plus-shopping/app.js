@@ -1,19 +1,19 @@
 const express = require("express");
-const mongoose = require("mongoose");
+// const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const { User } = require("./models");
 const { Op } = require("sequelize");
 const authMiddleware = require("./middlewares/auth-middleware")
 const Joi = require('joi');
-const Goods = require('./models/goods')
-const Cart = require('./models/cart')
+const { Goods } = require('./models')
+const { Cart } = require('./models')
 
-mongoose.connect("mongodb://localhost/shopping-demo", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-});
-const db = mongoose.connection;
-db.on("error", console.error.bind(console, "connection error:"));
+// mongoose.connect("mongodb://localhost/shopping-demo", {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+// });
+// const db = mongoose.connection;
+// db.on("error", console.error.bind(console, "connection error:"));
 
 const app = express();
 const router = express.Router();
@@ -137,7 +137,7 @@ router.get("/users/me", authMiddleware, async (req, res) => {
 router.get('/goods', authMiddleware, async (req, res) => {
     const { category } = req.query
 
-    const goods = await Goods.find(category? { category } : undefined)
+    const goods = await Goods.findAll(category? { where: { category } } : undefined)
     res.json({
         goods
     })
@@ -146,10 +146,10 @@ router.get('/goods', authMiddleware, async (req, res) => {
 //  장바구니 목록 확인
 router.get('/goods/cart', authMiddleware, async (req, res) => {
     const { userId } = res.locals.user;
-    const carts = await Cart.find({ userId })
+    const carts = await Cart.findAll({ where: { userId } })
     const goodsIds = carts.map((cart) => cart.goodsId)
 
-    const goods = await Goods.find({ goodsId: goodsIds })
+    const goods = await Goods.findAll({ where: { goodsId: goodsIds } })
 
     res.json({
         cart: carts.map((cart) => ({
@@ -163,7 +163,7 @@ router.get('/goods/cart', authMiddleware, async (req, res) => {
 router.get('/goods/:goodsId', authMiddleware, async (req, res) => {
     const { goodsId } = req.params
 
-    const [goods] = await Goods.find({ goodsId: Number(goodsId) })
+    const goods = await Goods.findOne({ where: { goodsId: Number(goodsId) } })
 
     res.json({
         goods
@@ -176,7 +176,7 @@ router.post('/goods/:goodsId/cart', authMiddleware, async (req, res) => {
     const { goodsId } = req.params
     const { quantity } = req.body
 
-    const existsCarts = await Cart.find({ userId, goodsId: Number(goodsId) })
+    const existsCarts = await Cart.findAll({ where: { userId, goodsId: Number(goodsId) } })
     if (existsCarts.length) {
         return res.status(400).json({ success: false, errorMessage: '이미 장바구니에 들어있는 상품입니다.' })
     }
@@ -190,9 +190,9 @@ router.delete('/goods/:goodsId/cart', authMiddleware, async (req, res) => {
     const { userId } = res.locals.user;
     const { goodsId } = req.params
 
-    const existsCarts = await Cart.find({ userId, goodsId: Number(goodsId) })
+    const existsCarts = await Cart.findAll({ where: { userId, goodsId: Number(goodsId) } })
     if (existsCarts.length) {
-        await Cart.deleteOne({ userId, goodsId: Number(goodsId) })
+        await Cart.destroy({ where: { userId, goodsId: Number(goodsId) } })
     }
     res.json({ success: true })
 })
@@ -207,27 +207,30 @@ router.put('/goods/:goodsId/cart', authMiddleware, async (req, res) => {
         return res.status(400).json({ success: false, errorMessage: '올바른 수량을 입력해주세요.' })
     }
 
-    const existsCarts = await Cart.find({ userId, goodsId: Number(goodsId) })
+    const existsCarts = await Cart.findAll({ where: { userId, goodsId: Number(goodsId) } })
     if (!existsCarts.length) {
         await Cart.create({ userId, goodsId: Number(goodsId), quantity })
     } else {
-        await Cart.updateOne({ userId, goodsId: Number(goodsId) }, { $set: { quantity } })
+        // await Cart.updateOne({ userId, goodsId: Number(goodsId) }, { $set: { quantity } })
+        const cart = await Cart.findOne({ where: { userId, goodsId: Number(goodsId) } })
+        await cart.update({ quantity })
+        await cart.save()
     }
 
     res.json({ success: true })
 })
 
 router.post('/goods', async (req, res) => {
-    const { goodsId, name, thumbnailUrl, category, price } = req.body
+    const { name, thumbnailUrl, category, price } = req.body
 
-    const goods = await Goods.find({ goodsId });
-    if (goods.length) {
-        return res.status(400).json({ success: false, errorMessage: '이미 있는 데이터입니다.' })
-    }
+    // const goods = await Goods.findAll({ where: { goodsId } });
+    // if (goods.length) {
+    //     return res.status(400).json({ success: false, errorMessage: '이미 있는 데이터입니다.' })
+    // }
 
-    const createdGoods = await Goods.create({ goodsId, name, thumbnailUrl, category, price })
+    const createdGoods = await Goods.create({ name, thumbnailUrl, category, price })
 
-    res.json({ goods })
+    res.json({ createdGoods })
 })
 
 app.listen(8080, () => {
