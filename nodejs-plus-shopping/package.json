@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "prettify": "prettier --write *.js **/*.js"
+  },
   "dependencies": {
     "express": "^4.17.2",
     "joi": "^17.6.0",
@@ -9,6 +12,7 @@
     "socket.io": "^4.4.1"
   },
   "devDependencies": {
+    "prettier": "^2.5.1",
     "sequelize-cli": "^6.4.1"
   }
 }
