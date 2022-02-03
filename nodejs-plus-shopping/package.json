@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "test": "jest",
     "prettify": "prettier --write *.js **/*.js"
   },
   "dependencies": {
@@ -12,7 +13,9 @@
     "socket.io": "^4.4.1"
   },
   "devDependencies": {
+    "jest": "^27.4.7",
     "prettier": "^2.5.1",
-    "sequelize-cli": "^6.4.1"
+    "sequelize-cli": "^6.4.1",
+    "supertest": "^6.2.2"
   }
 }
