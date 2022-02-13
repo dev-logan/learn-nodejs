@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+    </head>
+
+    <script src="http://code.jquery.com/jquery-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            axios
+                .get('http://54.180.150.0:3000/api/questions')
+                .then((response) => {
+                    const questions = response.data.questions
+                    for (const question of questions) {
+                        const questionTitle = question.questionTitle
+                        const author = question.author
+                        $('#print').append(`<p>${questionTitle}</p>`)
+                        $('#print').append(`<p>${author}</p>`)
+                    }
+                })
+                .catch((error) => {
+                    console.error(error)
+                })
+        })
+    </script>
+
+    <body>
+        <div>질문 목록</div>
+        <div id="print"></div>
+    </body>
+</html>
