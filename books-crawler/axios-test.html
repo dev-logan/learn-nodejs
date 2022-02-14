@@ -19,8 +19,10 @@
                     for (const question of questions) {
                         const questionTitle = question.questionTitle
                         const author = question.author
+                        const date = question.date
                         $('#print').append(`<p>${questionTitle}</p>`)
                         $('#print').append(`<p>${author}</p>`)
+                        $('#print').append(`<p>${date}</p>`)
                     }
                 })
                 .catch((error) => {
